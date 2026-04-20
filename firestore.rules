@@ -1,0 +1,148 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // 0. Default Deny Catch-All
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // --- Helpers ---
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isVerified() {
+      return isSignedIn() && request.auth.token.email_verified == true;
+    }
+
+    function isAdmin() {
+      return isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    // --- Entity Validations ---
+
+    function isValidPatient(data) {
+      return data.keys().hasAll(['name', 'contact', 'createdAt']) 
+        && data.name is string && data.name.size() > 0 && data.name.size() <= 200
+        && data.contact is string && data.contact.size() >= 5 && data.contact.size() <= 20
+        && data.createdAt == request.time
+        && (data.get('email', '') is string)
+        && (data.get('gender', 'other') in ['male', 'female', 'other', 'none']);
+    }
+
+    function isValidAppointment(data) {
+      return data.keys().hasAll(['patientId', 'patientName', 'date', 'status', 'createdAt'])
+        && isValidId(data.patientId)
+        && data.patientName is string && data.patientName.size() > 0
+        && data.date is string // format: YYYY-MM-DD
+        && data.status in ['scheduled', 'checked-in', 'waiting', 'consulting', 'completed', 'cancelled']
+        && data.createdAt == request.time
+        && (data.get('vitals', null) == null || data.vitals is map);
+    }
+
+    function isValidPrescription(data) {
+      return data.keys().hasAll(['patientId', 'appointmentId', 'status', 'createdAt'])
+        && isValidId(data.patientId)
+        && isValidId(data.appointmentId)
+        && data.status in ['pending', 'dispensed']
+        && data.createdAt == request.time
+        && data.get('medications', []) is list;
+    }
+
+    function isValidInventoryItem(data) {
+      return data.keys().hasAll(['name', 'stockLevel', 'unitPrice'])
+        && data.name is string && data.name.size() > 0
+        && data.stockLevel is int && data.stockLevel >= 0
+        && (data.unitPrice is float || data.unitPrice is int) && data.unitPrice >= 0;
+    }
+
+    function isValidBill(data) {
+      return data.keys().hasAll(['patientId', 'appointmentId', 'total', 'status', 'createdAt'])
+        && isValidId(data.patientId)
+        && isValidId(data.appointmentId)
+        && (data.total is float || data.total is int) && data.total >= 0
+        && data.status in ['unpaid', 'paid']
+        && data.createdAt == request.time;
+    }
+
+    // --- Match Blocks ---
+
+    match /admins/{adminId} {
+      allow read: if isVerified();
+      allow write: if false; // Only manageable via console or service account
+    }
+
+    match /patients/{patientId} {
+      allow read: if isVerified();
+      allow create: if isVerified() && isValidId(patientId) && isValidPatient(incoming());
+      allow update: if isVerified() && isValidPatient(incoming())
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasOnly(['name', 'contact', 'email', 'bloodGroup', 'address', 'gender', 'dob'])
+        );
+    }
+
+    match /appointments/{appointmentId} {
+      allow list: if isVerified() && resource.data.date != null; // Basic collection guard
+      allow get: if isVerified();
+      allow create: if isVerified() && isValidId(appointmentId) && isValidAppointment(incoming())
+        && exists(/databases/$(database)/documents/patients/$(incoming().patientId));
+      allow update: if isVerified() && isValidAppointment(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().patientId == existing().patientId
+        && (
+          isAdmin() ||
+          incoming().diff(existing()).affectedKeys().hasAny(['status', 'vitals', 'chiefComplaint', 'doctorName', 'priority'])
+        );
+    }
+
+    match /prescriptions/{prescriptionId} {
+      allow read: if isVerified();
+      allow create: if isVerified() && isValidPrescription(incoming())
+        && exists(/databases/$(database)/documents/appointments/$(incoming().appointmentId));
+      allow update: if isVerified() && isValidPrescription(incoming())
+        && incoming().appointmentId == existing().appointmentId
+        && incoming().diff(existing()).affectedKeys().hasOnly(['medications', 'status', 'instructions']);
+    }
+
+    match /inventory/{itemId} {
+      allow read: if isVerified();
+      allow create: if isVerified() && isValidInventoryItem(incoming());
+      allow update: if isVerified() && isValidInventoryItem(incoming())
+        && (isAdmin() || incoming().diff(existing()).affectedKeys().hasAny(['stockLevel', 'unitPrice', 'expiryDate']));
+    }
+
+    match /bills/{billId} {
+      allow read: if isVerified();
+      allow create: if isVerified() && isValidBill(incoming())
+        && exists(/databases/$(database)/documents/appointments/$(incoming().appointmentId));
+      allow update: if isVerified() && isValidBill(incoming())
+        && incoming().createdAt == existing().createdAt
+        && (
+          isAdmin() || (
+            existing().status == 'unpaid' 
+            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'total', 'items'])
+          )
+        );
+    }
+
+    match /labRequests/{requestId} {
+      allow read: if isVerified();
+      allow create: if isVerified() && exists(/databases/$(database)/documents/appointments/$(incoming().appointmentId));
+      allow update: if isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['results', 'status']);
+    }
+  }
+}

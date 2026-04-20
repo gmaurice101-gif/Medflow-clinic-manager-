@@ -1,0 +1,126 @@
+{
+  "entities": {
+    "Patient": {
+      "title": "Patient",
+      "description": "A patient registered at the clinic.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "dob": { "type": "string", "format": "date" },
+        "gender": { "type": "string", "enum": ["male", "female", "other"] },
+        "contact": { "type": "string" },
+        "email": { "type": "string" },
+        "bloodGroup": { "type": "string" },
+        "address": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["name", "contact"]
+    },
+    "Appointment": {
+      "title": "Appointment",
+      "description": "An appointment record containing status and vitals.",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "date": { "type": "string", "format": "date" },
+        "vitals": {
+          "type": "object",
+          "properties": {
+            "temp": { "type": "number" },
+            "bp_sys": { "type": "number" },
+            "bp_dia": { "type": "number" },
+            "hr": { "type": "number" },
+            "weight": { "type": "number" }
+          }
+        },
+        "status": { "type": "string", "enum": ["scheduled", "checked-in", "waiting", "consulting", "completed", "cancelled"] },
+        "chiefComplaint": { "type": "string" },
+        "department": { "type": "string" },
+        "doctorName": { "type": "string" },
+        "priority": { "type": "integer" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["patientId", "date", "status"]
+    },
+    "Prescription": {
+      "title": "Prescription",
+      "description": "Medication prescribed to a patient.",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "appointmentId": { "type": "string" },
+        "medications": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "name": { "type": "string" },
+              "dosage": { "type": "string" },
+              "frequency": { "type": "string" },
+              "duration": { "type": "string" }
+            }
+          }
+        },
+        "instructions": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "dispensed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "InventoryItem": {
+      "title": "Inventory Item",
+      "description": "Items in the pharmacy inventory.",
+      "type": "object",
+      "properties": {
+        "name": { "type": "string" },
+        "category": { "type": "string" },
+        "stockLevel": { "type": "integer" },
+        "unitPrice": { "type": "number" },
+        "expiryDate": { "type": "string", "format": "date" }
+      }
+    },
+    "Bill": {
+      "title": "Bill",
+      "description": "Billing record for services and medications.",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "appointmentId": { "type": "string" },
+        "items": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "description": { "type": "string" },
+              "amount": { "type": "number" }
+            }
+          }
+        },
+        "total": { "type": "number" },
+        "status": { "type": "string", "enum": ["unpaid", "paid"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "LabRequest": {
+      "title": "Lab Request",
+      "description": "Laboratory test request.",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "appointmentId": { "type": "string" },
+        "tests": { "type": "array", "items": { "type": "string" } },
+        "results": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "completed"] },
+        "requestedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "/patients/{patientId}": { "schema": "Patient", "description": "Patient records" },
+    "/appointments/{appointmentId}": { "schema": "Appointment", "description": "Clinic appointments and visit history" },
+    "/prescriptions/{prescriptionId}": { "schema": "Prescription", "description": "Prescribed medications" },
+    "/inventory/{itemId}": { "schema": "InventoryItem", "description": "Pharmacy stock" },
+    "/bills/{billId}": { "schema": "Bill", "description": "Patient bills" },
+    "/labRequests/{requestId}": { "schema": "LabRequest", "description": "Laboratory tests" }
+  }
+}

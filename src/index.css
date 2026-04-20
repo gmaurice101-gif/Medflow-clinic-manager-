@@ -1,0 +1,68 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700;900&display=swap');
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "shadcn/tailwind.css";
+
+@theme inline {
+    --font-heading: "Inter", sans-serif;
+    --font-sans: "Inter", sans-serif;
+    --color-background: #FFFFFF;
+    --color-foreground: #000000;
+    --color-clinic-bg: #F8FAFC;
+    --color-border: #000000;
+    --radius-xl: 0px;
+    --radius-lg: 0px;
+    --radius-md: 0px;
+    --radius-sm: 0px;
+}
+
+:root {
+    --background: #FFFFFF;
+    --foreground: #000000;
+    --card: #FFFFFF;
+    --card-foreground: #000000;
+    --primary: #000000;
+    --primary-foreground: #FFFFFF;
+    --border: #000000;
+    --radius: 0px;
+}
+
+@layer base {
+  * {
+    @apply border-border;
+    border-radius: 0 !important;
+  }
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-family: 'Inter', sans-serif;
+  }
+}
+
+@layer utilities {
+  .text-mega {
+    font-size: clamp(4rem, 12vw, 8rem);
+    line-height: 0.85;
+    letter-spacing: -0.06em;
+    font-weight: 900;
+  }
+
+  .clinic-border {
+    border: 1px solid #000000;
+  }
+
+  .stat-grid-item {
+    @apply border-r border-b border-black p-8 bg-white;
+  }
+
+  .nav-item-bold {
+    @apply border-b border-black font-black uppercase text-[10px] tracking-widest px-4 py-4 transition-colors cursor-pointer;
+  }
+
+  .nav-item-bold:hover {
+    @apply bg-black text-white;
+  }
+
+  .nav-item-bold-active {
+    @apply bg-black text-white;
+  }
+}
