@@ -31,7 +31,7 @@ export function handleFirestoreError(
       userId: user?.uid || 'anonymous',
       email: user?.email || 'N/A',
       emailVerified: user?.emailVerified || false,
-      isAnonymous: user?.isAnonymous || true,
+      isAnonymous: user ? user.isAnonymous : true,
       providerInfo: user?.providerData.map(p => ({
         providerId: p.providerId,
         displayName: p.displayName || '',

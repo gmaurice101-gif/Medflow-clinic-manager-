@@ -15,8 +15,12 @@ service cloud.firestore {
       return isSignedIn() && request.auth.token.email_verified == true;
     }
 
+    function isSuperAdmin() {
+      return isVerified() && (request.auth.token.email == 'gmaurice101@gmail.com' || request.auth.token.email == 'gmaurice@gmail.com');
+    }
+
     function isAdmin() {
-      return isVerified() && exists(/databases/$(database)/documents/admins/$(request.auth.uid));
+      return isSuperAdmin() || (isVerified() && exists(/databases/$(database)/documents/staff/$(request.auth.token.email.lower())) && get(/databases/$(database)/documents/staff/$(request.auth.token.email.lower())).data.roles.hasAny(['Admin', 'Management']));
     }
 
     function isValidId(id) {
@@ -37,28 +41,43 @@ service cloud.firestore {
       return data.keys().hasAll(['name', 'contact', 'createdAt']) 
         && data.name is string && data.name.size() > 0 && data.name.size() <= 200
         && data.contact is string && data.contact.size() >= 5 && data.contact.size() <= 20
-        && data.createdAt == request.time
-        && (data.get('email', '') is string)
-        && (data.get('gender', 'other') in ['male', 'female', 'other', 'none']);
+        && data.createdAt is timestamp;
     }
 
     function isValidAppointment(data) {
       return data.keys().hasAll(['patientId', 'patientName', 'date', 'status', 'createdAt'])
         && isValidId(data.patientId)
         && data.patientName is string && data.patientName.size() > 0
-        && data.date is string // format: YYYY-MM-DD
-        && data.status in ['scheduled', 'checked-in', 'waiting', 'consulting', 'completed', 'cancelled']
-        && data.createdAt == request.time
-        && (data.get('vitals', null) == null || data.vitals is map);
+        && data.date is string
+        && data.status in ['Scheduled', 'Checked In', 'Waiting', 'Consulting', 'Completed', 'Cancelled']
+        && data.createdAt is timestamp;
+    }
+
+    function isValidLabRequest(data) {
+      return data.keys().hasAll(['patientId', 'patientName', 'appointmentId', 'testName', 'status', 'requestedAt'])
+        && isValidId(data.patientId)
+        && isValidId(data.appointmentId)
+        && data.status in ['Requested', 'Collected', 'Completed']
+        && data.requestedAt is timestamp;
+    }
+
+    function isValidImagingRequest(data) {
+      return data.keys().hasAll(['patientId', 'patientName', 'appointmentId', 'type', 'status', 'requestedAt'])
+        && isValidId(data.patientId)
+        && isValidId(data.appointmentId)
+        && data.status in ['Requested', 'In Progress', 'Completed']
+        && data.requestedAt is timestamp;
     }
 
     function isValidPrescription(data) {
       return data.keys().hasAll(['patientId', 'appointmentId', 'status', 'createdAt'])
         && isValidId(data.patientId)
         && isValidId(data.appointmentId)
-        && data.status in ['pending', 'dispensed']
-        && data.createdAt == request.time
-        && data.get('medications', []) is list;
+        && data.status in ['Pending', 'Dispensed']
+        && data.createdAt is timestamp
+        && (data.medications is list)
+        && (!data.keys().contains('instructions') || (data.instructions is string && data.instructions.size() <= 1000))
+        && (!data.keys().contains('dispensedAt') || data.dispensedAt is timestamp);
     }
 
     function isValidInventoryItem(data) {
@@ -69,24 +88,34 @@ service cloud.firestore {
     }
 
     function isValidBill(data) {
-      return data.keys().hasAll(['patientId', 'appointmentId', 'total', 'status', 'createdAt'])
+      return data.keys().hasAll(['patientId', 'patientName', 'appointmentId', 'total', 'status', 'createdAt'])
         && isValidId(data.patientId)
         && isValidId(data.appointmentId)
         && (data.total is float || data.total is int) && data.total >= 0
         && data.status in ['unpaid', 'paid']
-        && data.createdAt == request.time;
+        && data.createdAt is timestamp
+        && (data.items is list)
+        && (!data.keys().contains('type') || data.type is string)
+        && (!data.keys().contains('paidAt') || data.paidAt is timestamp);
     }
 
     // --- Match Blocks ---
 
-    match /admins/{adminId} {
+    function isValidStaff(data) {
+      return data.keys().hasAll(['email', 'roles', 'createdAt'])
+        && data.email is string && data.email.size() > 0
+        && data.roles is list && data.roles.size() > 0;
+    }
+
+    match /staff/{staffId} {
       allow read: if isVerified();
-      allow write: if false; // Only manageable via console or service account
+      allow write: if isAdmin() && isValidStaff(incoming());
     }
 
     match /patients/{patientId} {
       allow read: if isVerified();
-      allow create: if isVerified() && isValidId(patientId) && isValidPatient(incoming());
+      allow create: if isVerified() && isValidId(patientId) && isValidPatient(incoming())
+        && incoming().createdAt == request.time;
       allow update: if isVerified() && isValidPatient(incoming())
         && incoming().createdAt == existing().createdAt
         && (
@@ -96,26 +125,30 @@ service cloud.firestore {
     }
 
     match /appointments/{appointmentId} {
-      allow list: if isVerified() && resource.data.date != null; // Basic collection guard
+      allow list: if isVerified(); 
       allow get: if isVerified();
       allow create: if isVerified() && isValidId(appointmentId) && isValidAppointment(incoming())
+        && incoming().createdAt == request.time
         && exists(/databases/$(database)/documents/patients/$(incoming().patientId));
       allow update: if isVerified() && isValidAppointment(incoming())
         && incoming().createdAt == existing().createdAt
         && incoming().patientId == existing().patientId
         && (
           isAdmin() ||
-          incoming().diff(existing()).affectedKeys().hasAny(['status', 'vitals', 'chiefComplaint', 'doctorName', 'priority'])
+          incoming().diff(existing()).affectedKeys().hasAny(['status', 'vitals', 'chiefComplaint', 'doctorName', 'priority', 'notes', 'updatedAt'])
         );
     }
 
     match /prescriptions/{prescriptionId} {
       allow read: if isVerified();
-      allow create: if isVerified() && isValidPrescription(incoming())
-        && exists(/databases/$(database)/documents/appointments/$(incoming().appointmentId));
-      allow update: if isVerified() && isValidPrescription(incoming())
+      allow create: if (isAdmin() || (isVerified() && isValidPrescription(incoming())
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/appointments/$(incoming().appointmentId))));
+      allow update: if (isAdmin() || (isVerified() && isValidPrescription(incoming())
+        && incoming().createdAt == existing().createdAt
+        && incoming().patientId == existing().patientId
         && incoming().appointmentId == existing().appointmentId
-        && incoming().diff(existing()).affectedKeys().hasOnly(['medications', 'status', 'instructions']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['medications', 'status', 'instructions', 'dispensedAt'])));
     }
 
     match /inventory/{itemId} {
@@ -127,22 +160,32 @@ service cloud.firestore {
 
     match /bills/{billId} {
       allow read: if isVerified();
-      allow create: if isVerified() && isValidBill(incoming())
-        && exists(/databases/$(database)/documents/appointments/$(incoming().appointmentId));
-      allow update: if isVerified() && isValidBill(incoming())
+      allow create: if (isAdmin() || (isVerified() && isValidBill(incoming())
+        && incoming().createdAt == request.time
+        && exists(/databases/$(database)/documents/appointments/$(incoming().appointmentId))));
+      allow update: if (isAdmin() || (isVerified() && isValidBill(incoming())
         && incoming().createdAt == existing().createdAt
+        && incoming().patientId == existing().patientId
         && (
-          isAdmin() || (
-            existing().status == 'unpaid' 
-            && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'total', 'items'])
-          )
-        );
+          existing().status == 'unpaid' 
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'total', 'items', 'paidAt'])
+        )));
     }
 
     match /labRequests/{requestId} {
       allow read: if isVerified();
-      allow create: if isVerified() && exists(/databases/$(database)/documents/appointments/$(incoming().appointmentId));
-      allow update: if isVerified() && incoming().diff(existing()).affectedKeys().hasOnly(['results', 'status']);
+      allow create: if isVerified() && isValidLabRequest(incoming())
+        && incoming().requestedAt == request.time
+        && exists(/databases/$(database)/documents/appointments/$(incoming().appointmentId));
+      allow update: if isVerified() && (isAdmin() || incoming().diff(existing()).affectedKeys().hasAny(['status', 'results', 'updatedAt']));
+    }
+
+    match /imagingRequests/{requestId} {
+      allow read: if isVerified();
+      allow create: if isVerified() && isValidImagingRequest(incoming())
+        && incoming().requestedAt == request.time
+        && exists(/databases/$(database)/documents/appointments/$(incoming().appointmentId));
+      allow update: if isVerified() && (isAdmin() || incoming().diff(existing()).affectedKeys().hasAny(['status', 'findings', 'updatedAt']));
     }
   }
 }

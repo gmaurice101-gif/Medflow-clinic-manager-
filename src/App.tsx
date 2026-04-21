@@ -15,6 +15,7 @@ import Pharmacy from '@/pages/Pharmacy';
 import Billing from '@/pages/Billing';
 import Laboratory from '@/pages/Laboratory';
 import Radiology from '@/pages/Radiology';
+import Admin from '@/pages/Admin';
 import { auth, testFirestoreConnection, signInWithGoogle } from '@/lib/firebase';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { Button } from '@/components/ui/button';
@@ -98,6 +99,7 @@ export default function App() {
           <Route path="/billing" element={<Billing />} />
           <Route path="/lab" element={<Laboratory />} />
           <Route path="/radiology" element={<Radiology />} />
+          <Route path="/admin" element={<Admin />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Layout>

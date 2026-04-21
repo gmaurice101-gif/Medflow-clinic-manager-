@@ -160,7 +160,8 @@ export default function Pharmacy() {
                 </Button>
               </div>
             </div>
-            <Table>
+            <div className="overflow-x-auto">
+                <Table>
               <TableHeader>
                 <TableRow>
                   <TableHead>Medication Name</TableHead>
@@ -181,7 +182,7 @@ export default function Pharmacy() {
                         {item.stockLevel} units
                       </span>
                     </TableCell>
-                    <TableCell>${item.unitPrice?.toFixed(2) || '0.00'}</TableCell>
+                    <TableCell>KSh {Number(item.unitPrice).toLocaleString()}</TableCell>
                     <TableCell>
                       {item.stockLevel < 50 ? (
                         <Badge className="bg-red-50 text-red-700 hover:bg-red-50 border-red-100">Low Stock</Badge>
@@ -208,6 +209,7 @@ export default function Pharmacy() {
                 )}
               </TableBody>
             </Table>
+            </div>
           </Card>
         </TabsContent>
       </Tabs>

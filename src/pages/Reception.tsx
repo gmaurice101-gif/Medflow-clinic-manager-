@@ -35,6 +35,7 @@ export default function Reception() {
   const [newName, setNewName] = React.useState('');
   const [newPhone, setNewPhone] = React.useState('');
   const [newDob, setNewDob] = React.useState('');
+  const [newComplaint, setNewComplaint] = React.useState('');
 
   React.useEffect(() => {
     const today = format(new Date(), 'yyyy-MM-dd');
@@ -77,6 +78,7 @@ export default function Reception() {
         patientName: newName,
         date: format(new Date(), 'yyyy-MM-dd'),
         status: 'Scheduled',
+        chiefComplaint: newComplaint,
         createdAt: serverTimestamp(),
       });
 
@@ -85,6 +87,7 @@ export default function Reception() {
       setNewName('');
       setNewPhone('');
       setNewDob('');
+      setNewComplaint('');
     } catch (error) {
       handleFirestoreError(error, 'create', 'patients/appointments');
     }
@@ -111,12 +114,14 @@ export default function Reception() {
           <p className="text-slate-500">Manage patient arrivals and registration for {format(new Date(), 'MMMM do, yyyy')}.</p>
         </div>
         <Dialog open={isRegistering} onOpenChange={setIsRegistering}>
-          <DialogTrigger asChild>
-            <Button className="bg-blue-600 hover:bg-blue-700">
-              <Plus className="w-4 h-4 mr-2" />
-              Register New Patient
-            </Button>
-          </DialogTrigger>
+          <DialogTrigger
+            render={
+              <Button className="bg-blue-600 hover:bg-blue-700">
+                <Plus className="w-4 h-4 mr-2" />
+                Register New Patient
+              </Button>
+            }
+          />
           <DialogContent className="sm:max-w-[425px]">
             <DialogHeader>
               <DialogTitle>Register Patient</DialogTitle>
@@ -153,6 +158,16 @@ export default function Reception() {
                   className="col-span-3" 
                 />
               </div>
+              <div className="grid grid-cols-4 items-center gap-4">
+                <Label htmlFor="complaint" className="text-right">Complaint</Label>
+                <Input 
+                  id="complaint" 
+                  value={newComplaint} 
+                  onChange={(e) => setNewComplaint(e.target.value)} 
+                  className="col-span-3" 
+                  placeholder="Headache, fever, etc."
+                />
+              </div>
             </div>
             <div className="flex justify-end gap-2">
               <Button variant="outline" onClick={() => setIsRegistering(false)}>Cancel</Button>
@@ -163,14 +178,15 @@ export default function Reception() {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
+        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
           <h3 className="font-semibold text-slate-900">Today's Queue</h3>
-          <div className="relative w-64">
+          <div className="relative w-full sm:w-64">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input placeholder="Search today's patients..." className="pl-9 bg-white" />
           </div>
         </div>
-        <Table>
+        <div className="overflow-x-auto">
+          <Table>
           <TableHeader>
             <TableRow>
               <TableHead>Time</TableHead>
@@ -234,6 +250,7 @@ export default function Reception() {
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );

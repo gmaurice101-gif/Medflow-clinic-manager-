@@ -74,11 +74,11 @@ export default function Dashboard() {
     { label: 'Total Patients', value: counts.patients.toLocaleString(), icon: Users },
     { label: 'Today Apps', value: counts.appointments.toString(), icon: Calendar },
     { label: 'Pending Lab', value: counts.labTests.toString(), icon: Activity },
-    { label: 'Revenue', value: `$${counts.revenue.toLocaleString()}`, icon: DollarSign },
+    { label: 'Revenue', value: `KSh ${counts.revenue.toLocaleString()}`, icon: DollarSign },
   ];
 
   return (
-    <div className="space-y-0 min-h-full">
+    <div className="space-y-0 min-h-full p-6 lg:p-0">
       {/* Dynamic Stats Row - Brutalist Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 border-b border-black">
         {stats.map((stat, i) => (

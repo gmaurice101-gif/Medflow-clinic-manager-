@@ -34,17 +34,17 @@ export default function Patients() {
 
   return (
     <div className="space-y-6">
-      <div className="flex justify-between items-center">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-4">
         <div>
           <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Patient Directory</h2>
           <p className="text-slate-500 mt-1">Total {patients.length} patients registered.</p>
         </div>
-        <div className="flex gap-3">
-          <Button variant="outline" className="h-10">
+        <div className="flex gap-3 w-full sm:w-auto">
+          <Button variant="outline" className="h-10 flex-1 sm:flex-none">
             <Filter className="w-4 h-4 mr-2" />
             Filter
           </Button>
-          <Button className="bg-blue-600 hover:bg-blue-700 h-10 px-6">
+          <Button className="bg-blue-600 hover:bg-blue-700 h-10 px-6 flex-1 sm:flex-none">
             <Plus className="w-4 h-4 mr-2" />
             New Patient
           </Button>
@@ -52,21 +52,23 @@ export default function Patients() {
       </div>
 
       <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex justify-between items-center">
-          <div className="relative w-96">
+        <div className="p-4 border-b border-slate-100 bg-slate-50/50 flex flex-col sm:flex-row justify-between items-center gap-4">
+          <div className="relative w-full sm:w-96">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
             <Input 
               placeholder="Search by name, ID or phone number..." 
-              className="pl-9 bg-white border-slate-200" 
+              className="pl-9 bg-white border-slate-200 w-full" 
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
         </div>
-        <Table>
+        <div className="overflow-x-auto">
+          <Table>
           <TableHeader>
             <TableRow>
-              <TableHead className="w-[300px]">Patient Name</TableHead>
+              <TableHead className="w-[120px]">Patient ID</TableHead>
+              <TableHead className="w-[200px]">Patient Name</TableHead>
               <TableHead>Age / Gender</TableHead>
               <TableHead>Contact</TableHead>
               <TableHead>Joined Date</TableHead>
@@ -77,10 +79,13 @@ export default function Patients() {
           <TableBody>
             {loading ? (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-slate-400">Loading patients...</TableCell>
+                <TableCell colSpan={7} className="text-center py-10 text-slate-400">Loading patients...</TableCell>
               </TableRow>
             ) : filteredPatients.map((patient) => (
               <TableRow key={patient.id} className="group hover:bg-slate-50/50 transition-colors">
+                <TableCell className="font-bold text-slate-900 uppercase">
+                  #{patient.id.slice(-6).toUpperCase()}
+                </TableCell>
                 <TableCell>
                   <div className="flex items-center gap-3">
                     <Avatar className="w-9 h-9 border border-slate-200 shadow-sm">
@@ -89,7 +94,6 @@ export default function Patients() {
                     </Avatar>
                     <div>
                       <p className="font-bold text-slate-900 group-hover:text-blue-600 transition-colors">{patient.name}</p>
-                      <p className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">ID: {patient.id.slice(-6)}</p>
                     </div>
                   </div>
                 </TableCell>
@@ -112,11 +116,13 @@ export default function Patients() {
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600">
-                        <MoreVertical className="w-4 h-4" />
-                      </Button>
-                    </DropdownMenuTrigger>
+                    <DropdownMenuTrigger
+                      render={
+                        <Button variant="ghost" size="icon" className="h-8 w-8 text-slate-400 hover:text-slate-600">
+                          <MoreVertical className="w-4 h-4" />
+                        </Button>
+                      }
+                    />
                     <DropdownMenuContent align="end" className="w-48">
                       <DropdownMenuItem className="flex items-center gap-2 py-2">
                         <FileText className="w-4 h-4 text-slate-400" />
@@ -137,11 +143,12 @@ export default function Patients() {
             ))}
             {!loading && filteredPatients.length === 0 && (
               <TableRow>
-                <TableCell colSpan={6} className="text-center py-10 text-slate-400 italic">No patients found matching your search.</TableCell>
+                <TableCell colSpan={7} className="text-center py-10 text-slate-400 italic">No patients found matching your search.</TableCell>
               </TableRow>
             )}
           </TableBody>
         </Table>
+        </div>
       </div>
     </div>
   );

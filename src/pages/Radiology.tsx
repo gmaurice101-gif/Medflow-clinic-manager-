@@ -29,58 +29,85 @@ export default function Radiology() {
     return () => unsubscribe();
   }, []);
 
-  const handleUpdateStatus = async (id: string, status: string) => {
+  const handleUpdateStatus = async (id: string, status: string, findings?: string) => {
     try {
-      await updateDoc(doc(db, 'imagingRequests', id), {
+      const updateData: any = {
         status: status,
         updatedAt: serverTimestamp()
-      });
-      toast.success(`Imaging marked as ${status}`);
+      };
+      if (findings !== undefined) updateData.findings = findings;
+      
+      await updateDoc(doc(db, 'imagingRequests', id), updateData);
+      toast.success(`Imaging updated to ${status}`);
     } catch (error) {
       handleFirestoreError(error, 'update', `imagingRequests/${id}`);
     }
   };
 
   return (
-    <div className="space-y-8">
-      <div className="flex justify-between items-end">
+    <div className="space-y-8 p-6 lg:p-0">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end gap-6">
         <div>
-          <h2 className="text-3xl font-bold text-slate-900 tracking-tight">Radiology</h2>
-          <p className="text-slate-500 mt-1">Diagnostic imaging (X-Ray, Ultrasound, CT, MRI).</p>
+          <h2 className="text-3xl font-black uppercase tracking-tighter">Radiology Portal</h2>
+          <p className="text-slate-500 mt-2 font-medium">Diagnostic imaging queue and vault access.</p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-10">
         <div className="space-y-6">
-          <h3 className="text-lg font-bold flex items-center gap-2">
-            <Scan className="w-5 h-5 text-blue-600" />
+          <h3 className="text-xs font-black uppercase tracking-widest text-slate-400 flex items-center gap-2">
+            <Scan className="w-4 h-4" />
             Active Imaging Queue
           </h3>
-          {requests.map((req) => (
-            <Card key={req.id} className="border-slate-200 shadow-sm overflow-hidden group hover:border-blue-400 transition-all">
-                <div className="flex">
-                    <div className="w-2 bg-blue-600"></div>
-                    <div className="p-6 flex-1 flex justify-between items-center">
-                        <div>
-                            <div className="flex items-center gap-2 mb-1">
-                                <span className="text-xs font-bold text-slate-400 uppercase tracking-widest">#{req.id.slice(-6)}</span>
-                                <Badge className="text-[10px] bg-slate-100 text-slate-600 font-bold">{req.status}</Badge>
-                            </div>
-                            <h4 className="text-lg font-bold text-slate-900 mb-1">{req.patientName || 'Unknown Patient'}</h4>
-                            <p className="text-sm text-blue-600 font-medium">{req.type || 'General Imaging'}</p>
-                        </div>
-                        <div className="text-right">
-                             <p className="text-xs text-slate-400 mb-4">
-                                {req.requestedAt?.seconds ? format(new Date(req.requestedAt.seconds * 1000), 'hh:mm a') : '...'}
-                             </p>
-                             <Button size="sm" className="bg-slate-900" onClick={() => handleUpdateStatus(req.id, 'In Progress')}>
-                                Start Scan
-                             </Button>
-                        </div>
-                    </div>
-                </div>
-            </Card>
-          ))}
+          <div className="space-y-4">
+            {requests.map((req) => (
+              <Card key={req.id} className="border-black rounded-none shadow-none overflow-hidden group hover:bg-slate-50 transition-all">
+                  <div className="flex">
+                      <div className={cn(
+                          "w-2",
+                          req.status === 'Requested' ? "bg-amber-400" : 
+                          req.status === 'In Progress' ? "bg-blue-600" : "bg-emerald-500"
+                      )}></div>
+                      <div className="p-8 flex-1">
+                          <div className="flex justify-between items-start mb-6">
+                              <div>
+                                  <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">REQ #{req.id.slice(-6)}</span>
+                                  <h4 className="text-2xl font-black uppercase tracking-tight text-slate-900">{req.patientName || 'Unknown Patient'}</h4>
+                              </div>
+                              <Badge className="rounded-none border-black font-black uppercase text-[10px] tracking-widest bg-white text-black">
+                                  {req.status}
+                              </Badge>
+                          </div>
+
+                          <div className="bg-white border border-black p-4 mb-6">
+                               <span className="text-[10px] font-black uppercase tracking-widest text-slate-400 block mb-1">Exam Details</span>
+                               <p className="text-lg font-black text-black uppercase italic tracking-tighter">
+                                   {req.type || 'General Imaging Request'}
+                               </p>
+                          </div>
+
+                          <div className="flex justify-between items-end">
+                                <div className="text-[10px] font-bold text-slate-400 uppercase">
+                                    Requested: {req.requestedAt?.seconds ? format(new Date(req.requestedAt.seconds * 1000), 'hh:mm a') : '...'}
+                                </div>
+                                <div className="flex gap-2">
+                                     {req.status === 'Requested' && (
+                                         <Button size="sm" className="bg-black text-white hover:bg-slate-800 uppercase text-[10px] font-black tracking-widest px-6 h-10" onClick={() => handleUpdateStatus(req.id, 'In Progress')}>
+                                            Start Scan
+                                         </Button>
+                                     )}
+                                     {req.status === 'In Progress' && (
+                                         <Button size="sm" className="bg-emerald-600 text-white hover:bg-emerald-700 uppercase text-[10px] font-black tracking-widest px-6 h-10" onClick={() => handleUpdateStatus(req.id, 'Completed')}>
+                                            Complete
+                                         </Button>
+                                     )}
+                                </div>
+                          </div>
+                      </div>
+                  </div>
+              </Card>
+            ))}
+          </div>
           {requests.length === 0 && !loading && (
              <div className="py-20 text-center bg-slate-50 border-2 border-dashed rounded-3xl border-slate-200">
                 <ImageOff className="w-16 h-16 text-slate-200 mx-auto mb-4" />

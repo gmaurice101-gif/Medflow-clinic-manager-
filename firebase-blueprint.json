@@ -107,10 +107,25 @@
       "type": "object",
       "properties": {
         "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
         "appointmentId": { "type": "string" },
-        "tests": { "type": "array", "items": { "type": "string" } },
+        "testName": { "type": "string" },
         "results": { "type": "string" },
-        "status": { "type": "string", "enum": ["pending", "completed"] },
+        "status": { "type": "string", "enum": ["Requested", "Collected", "Completed"] },
+        "requestedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "ImagingRequest": {
+      "title": "Imaging Request",
+      "description": "Radiology imaging request.",
+      "type": "object",
+      "properties": {
+        "patientId": { "type": "string" },
+        "patientName": { "type": "string" },
+        "appointmentId": { "type": "string" },
+        "type": { "type": "string", "description": "Type/Details of imaging (e.g. X-Ray Chest)" },
+        "findings": { "type": "string" },
+        "status": { "type": "string", "enum": ["Requested", "In Progress", "Completed"] },
         "requestedAt": { "type": "string", "format": "date-time" }
       }
     }
@@ -121,6 +136,7 @@
     "/prescriptions/{prescriptionId}": { "schema": "Prescription", "description": "Prescribed medications" },
     "/inventory/{itemId}": { "schema": "InventoryItem", "description": "Pharmacy stock" },
     "/bills/{billId}": { "schema": "Bill", "description": "Patient bills" },
-    "/labRequests/{requestId}": { "schema": "LabRequest", "description": "Laboratory tests" }
+    "/labRequests/{requestId}": { "schema": "LabRequest", "description": "Laboratory tests" },
+    "/imagingRequests/{requestId}": { "schema": "ImagingRequest", "description": "Radiology imaging requests" }
   }
 }
