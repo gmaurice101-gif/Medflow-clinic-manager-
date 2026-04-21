@@ -366,15 +366,8 @@ export default function Consultation() {
         });
       }
 
-      const invoiceItems = [
-        { name: 'Consultation Fee', price: CONSULTATION_FEE },
-        ...labsToSubmit.map(l => ({ name: `Lab: ${l.name}`, price: l.price }))
-      ];
-      await createInvoice(invoiceItems, 'Laboratory & Consultation');
-
-      toast.success("Lab request sent & Invoice generated");
-      setSelectedLabs([]);
-      setLabType('');
+      toast.success("Lab request sent to laboratory");
+      // Don't clear labs yet, they will be used for final billing in handleCompleteVisit
     } catch (error) {
       handleFirestoreError(error, 'create', 'labRequests');
     }
@@ -391,14 +384,8 @@ export default function Consultation() {
         createdAt: serverTimestamp()
       });
 
-      const invoiceItems = meds.map(m => ({ 
-        name: `Medication: ${m.name}`, 
-        price: (Number(m.unitPrice) || 0) * (Number(m.quantity) || 1) 
-      }));
-      
-      await createInvoice(invoiceItems, 'Pharmacy');
-      toast.success("Prescription sent to Pharmacy & Invoice generated");
-      setMeds([]);
+      toast.success("Prescription sent to Pharmacy");
+      // Don't clear meds yet, they will be used for final billing in handleCompleteVisit
     } catch (error) {
       handleFirestoreError(error, 'create', 'prescriptions');
     }
@@ -407,14 +394,8 @@ export default function Consultation() {
   const handleProcedureSubmission = async () => {
     if (!activeApt || selectedProcedures.length === 0) return;
     try {
-      const invoiceItems = selectedProcedures.map(p => ({ 
-        name: `Procedure: ${p.name}`, 
-        price: p.price 
-      }));
-      
-      await createInvoice(invoiceItems, 'Procedures');
-      toast.success("Procedures submitted & Invoice generated");
-      setSelectedProcedures([]);
+      toast.success("Procedures ordered successfully");
+      // Don't clear procedures yet, they will be used for final billing in handleCompleteVisit
     } catch (error) {
       handleFirestoreError(error, 'create', 'procedures');
     }
@@ -436,19 +417,57 @@ export default function Consultation() {
   const handleCompleteVisit = async () => {
     if (!activeApt) return;
     try {
+      // 1. Generate consolidated invoice
+      const invoiceItems: { name: string, price: number }[] = [
+        { name: 'Consultation Fee', price: CONSULTATION_FEE }
+      ];
+
+      // Add Labs
+      selectedLabs.forEach(id => {
+        const lab = COMMON_LABS.find(l => l.id === id);
+        if (lab) invoiceItems.push({ name: `Lab: ${lab.name}`, price: lab.price });
+      });
+      if (labType) invoiceItems.push({ name: `Lab: ${labType}`, price: 500 });
+
+      // Add Procedures
+      selectedProcedures.forEach(p => {
+        invoiceItems.push({ name: `Procedure: ${p.name}`, price: p.price });
+      });
+
+      // Add Medications
+      meds.forEach(m => {
+        invoiceItems.push({ 
+          name: `Medication: ${m.name}`, 
+          price: (Number(m.unitPrice) || 0) * (Number(m.quantity) || 1) 
+        });
+      });
+
+      if (invoiceItems.length > 0) {
+        await createInvoice(invoiceItems, 'Combined Hospital Visit');
+      }
+
+      // 2. Finalize appointment
       await updateDoc(doc(db, 'appointments', activeApt.id), {
         status: 'Completed',
         notes: notes,
         chiefComplaint: chiefComplaint,
         patientHistory: patientHistory,
+        medications: meds, // ensure meds are saved in history
+        selectedLabs: selectedLabs.map(id => COMMON_LABS.find(l => l.id === id)).filter(Boolean),
+        selectedProcedures,
         updatedAt: serverTimestamp()
       });
       
-      toast.success("Visit marked as completed");
+      toast.success("Visit marked as completed & Final Invoice generated");
+      
+      // 3. Reset states
       setNotes('');
       setPatientHistory('');
       setChiefComplaint('');
       setMeds([]);
+      setSelectedLabs([]);
+      setSelectedProcedures([]);
+      setLabType('');
       setActiveApt(null);
     } catch (error) {
       handleFirestoreError(error, 'update', `appointments/${activeApt.id}`);
@@ -857,7 +876,7 @@ export default function Consultation() {
                           </div>
                         </ScrollArea>
                         <Button className="w-full bg-blue-600 hover:bg-blue-700 mt-2" onClick={handleProcedureSubmission}>
-                          Submit & Charge Procedures
+                          Submit Ordered Procedures
                         </Button>
                       </CardContent>
                     </Card>
@@ -914,7 +933,7 @@ export default function Consultation() {
                       </div>
 
                       <Button className="w-full bg-purple-600 hover:bg-purple-700 mt-4" onClick={handleCreateLabRequest}>
-                        Submit to Lab & Calculate Billing
+                        Submit Lab Orders
                       </Button>
                     </CardContent>
                   </Card>
